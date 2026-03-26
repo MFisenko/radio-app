@@ -1,4 +1,6 @@
 {
+    "typescript.tsdk": "node_modules/typescript/lib",
+    "typescript.enablePromptUseWorkspaceTsdk": true,
     "files.exclude": {
         "**/.git": true,
         "**/.svn": true,
@@ -10,7 +12,6 @@
         "**/.symlinks": true,
         "**/.plugin_symlinks": true,
         "**/.retool_types/**": true,
-        "**/*tsconfig.json": true,
         ".cache": true,
         "retool.config.json": true
     }
