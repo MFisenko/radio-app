@@ -1,24 +1,46 @@
 import { useEffect, useRef } from 'react'
 import { Animated, Easing, View } from 'react-native'
 
+import { ERadioUiState } from '../../models/player.model'
+
 const DEFAULT_SIZE = 10
-const DEFAULT_COLOR = '#ef4444'
+
+const STATUS_STYLES: Record<
+	ERadioUiState,
+	{ color: string; pulseEnabled: boolean }
+> = {
+	[ERadioUiState.IDLE]: { color: '#9ca3af', pulseEnabled: false },
+	[ERadioUiState.LIVE_PLAYING]: { color: '#ef4444', pulseEnabled: true },
+	[ERadioUiState.BUFFER_PLAYING]: { color: '#f59e0b', pulseEnabled: true },
+	[ERadioUiState.PAUSED]: { color: '#f59e0b', pulseEnabled: false },
+	[ERadioUiState.STOPPED]: { color: '#6b7280', pulseEnabled: false },
+}
 
 export type LivePingDotProps = {
-	color?: string
-	pulseColor?: string
+	/** Drives color and whether the pulse ring animates. */
+	radioUiState: ERadioUiState
 	size?: number
+	/** Optional color override (rare). */
+	color?: string
 }
 
 export default function LivePingDot({
-	color = DEFAULT_COLOR,
-	pulseColor,
+	radioUiState,
 	size = DEFAULT_SIZE,
+	color: colorOverride,
 }: LivePingDotProps) {
-	const ringColor = pulseColor ?? color
+	const preset = STATUS_STYLES[radioUiState]
+	const color = colorOverride ?? preset.color
+	const pulseEnabled = preset.pulseEnabled
+
 	const anim = useRef(new Animated.Value(0)).current
 
 	useEffect(() => {
+		if (!pulseEnabled) {
+			anim.setValue(0)
+			return
+		}
+
 		const loop = Animated.loop(
 			Animated.timing(anim, {
 				toValue: 1,
@@ -32,7 +54,7 @@ export default function LivePingDot({
 			loop.stop()
 			anim.setValue(0)
 		}
-	}, [anim])
+	}, [anim, pulseEnabled])
 
 	const ringScale = anim.interpolate({
 		inputRange: [0, 1],
@@ -48,18 +70,20 @@ export default function LivePingDot({
 			className='items-center justify-center'
 			style={{ width: size * 2.6, height: size * 2.6 }}
 		>
-			<Animated.View
-				pointerEvents='none'
-				style={{
-					position: 'absolute',
-					width: size,
-					height: size,
-					borderRadius: size / 2,
-					backgroundColor: ringColor,
-					transform: [{ scale: ringScale }],
-					opacity: ringOpacity,
-				}}
-			/>
+			{pulseEnabled ? (
+				<Animated.View
+					pointerEvents='none'
+					style={{
+						position: 'absolute',
+						width: size,
+						height: size,
+						borderRadius: size / 2,
+						backgroundColor: color,
+						transform: [{ scale: ringScale }],
+						opacity: ringOpacity,
+					}}
+				/>
+			) : null}
 			<View
 				style={{
 					width: size,
