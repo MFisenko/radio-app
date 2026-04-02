@@ -44,8 +44,8 @@ export default function Index() {
 
 	const lockScreenMeta = useMemo(
 		() => ({
-			title: CHANNELS[channelIndex].name_en,
-			artist: CHANNELS[channelIndex].info_en,
+			title: CHANNELS[channelIndex].name_be,
+			artist: CHANNELS[channelIndex].info_be,
 			albumTitle: 'Unistar',
 		}),
 		[channelIndex],
@@ -72,7 +72,7 @@ export default function Index() {
 	return (
 		<SafeAreaView className='flex-1' edges={['top', 'bottom']}>
 			<View className='flex-1 pt-5 px-5'>
-				<View className='flex-1 justify-center gap-10'>
+				<View className='flex-1 justify-center gap-12'>
 					<View className='items-center gap-2'>
 						<Text className='text-[11px] font-medium uppercase tracking-widest text-neutral-500 font-mono'>
 							Current status
@@ -91,19 +91,16 @@ export default function Index() {
 							className='text-center text-3xl leading-tight text-neutral-900 font-mono'
 							numberOfLines={2}
 						>
-							{channel.name_en}
+							{channel.name_be}
 						</Text>
 						<Text className='text-center text-base text-neutral-600 font-mono'>
-							{channel.info_en}
+							{channel.info_be}
 						</Text>
 					</View>
 					<Vinyl
 						coverUri={channel.placeholder_path}
 						glowColor={channelAccentHex(channel.color)}
 					/>
-					<Text className='px-4 text-center text-sm text-neutral-500 font-mono'>
-						Unistar · HLS stream
-					</Text>
 
 					<ScrollView
 						horizontal
