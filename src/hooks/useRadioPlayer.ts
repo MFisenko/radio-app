@@ -3,30 +3,42 @@ import {
 	useAudioPlayer,
 	useAudioPlayerStatus,
 } from 'expo-audio'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { ERadioUiState } from '../models/player.model'
 
-const AUDIO_SOURCE =
-	'https://radio.dc.beltelecom.by/radiusfm/radiusfm.stream/playlist.m3u8'
+export type RadioLockScreenMeta = {
+	title: string
+	artist: string
+	albumTitle: string
+}
 
-const LOCK_SCREEN_META = {
-	title: 'Radius FM',
-	artist: 'Live Radio',
-	albumTitle: 'Radio Stream',
-} as const
+const DEFAULT_LOCK_SCREEN: RadioLockScreenMeta = {
+	title: 'Radio',
+	artist: 'Live',
+	albumTitle: 'Stream',
+}
 
-export function useRadioPlayer() {
+export type UseRadioPlayerOptions = {
+	streamUrl: string
+	lockScreenMeta?: RadioLockScreenMeta
+}
+
+export function useRadioPlayer(options: UseRadioPlayerOptions) {
+	const { streamUrl, lockScreenMeta = DEFAULT_LOCK_SCREEN } = options
+
 	const [error, setError] = useState<string | null>(null)
-	/** After pause: audio is from the buffer, not the live edge. */
 	const [isLiveEdge, setIsLiveEdge] = useState(true)
-	/** User pressed Stop: fully disconnected; next Play is live again. */
 	const [stoppedByUser, setStoppedByUser] = useState(false)
-	/** Playback has started at least once this session (idle vs paused-after-listening). */
 	const [hasStartedPlayback, setHasStartedPlayback] = useState(false)
 
-	const player = useAudioPlayer(AUDIO_SOURCE)
+	const player = useAudioPlayer(streamUrl)
 	const status = useAudioPlayerStatus(player)
+
+	const playingRef = useRef(status.playing)
+	playingRef.current = status.playing
+
+	const streamUrlInitRef = useRef<string | null>(null)
 
 	const radioUiState = useMemo((): ERadioUiState => {
 		const playing = status.playing
@@ -36,12 +48,7 @@ export function useRadioPlayer() {
 		if (!playing && hasStartedPlayback && !stoppedByUser)
 			return ERadioUiState.PAUSED
 		return ERadioUiState.IDLE
-	}, [
-		status.playing,
-		isLiveEdge,
-		stoppedByUser,
-		hasStartedPlayback,
-	])
+	}, [status.playing, isLiveEdge, stoppedByUser, hasStartedPlayback])
 
 	useEffect(() => {
 		async function setup() {
@@ -69,13 +76,43 @@ export function useRadioPlayer() {
 	const activateControls = useCallback(() => {
 		player.setActiveForLockScreen(
 			true,
-			{ ...LOCK_SCREEN_META },
+			{
+				title: lockScreenMeta.title,
+				artist: lockScreenMeta.artist,
+				albumTitle: lockScreenMeta.albumTitle,
+			},
 			{
 				showSeekBackward: false,
 				showSeekForward: false,
 			},
 		)
-	}, [player])
+	}, [player, lockScreenMeta])
+
+	useEffect(() => {
+		if (streamUrlInitRef.current === null) {
+			streamUrlInitRef.current = streamUrl
+			return
+		}
+		if (streamUrlInitRef.current === streamUrl) {
+			return
+		}
+		streamUrlInitRef.current = streamUrl
+
+		const resume = playingRef.current
+		try {
+			setError(null)
+			player.pause()
+			player.replace(streamUrl)
+			setIsLiveEdge(true)
+			setStoppedByUser(false)
+			if (resume) {
+				activateControls()
+				player.play()
+			}
+		} catch (err) {
+			setError(`Switch stream failed: ${String(err)}`)
+		}
+	}, [streamUrl, player, activateControls])
 
 	const play = useCallback(() => {
 		try {
@@ -100,7 +137,6 @@ export function useRadioPlayer() {
 		}
 	}, [player])
 
-	/** Full stop: next Play is live again (HLS source reload). */
 	const stop = useCallback(() => {
 		try {
 			if (!hasStartedPlayback && !status.playing) {
@@ -109,22 +145,23 @@ export function useRadioPlayer() {
 			setError(null)
 			player.setActiveForLockScreen(false)
 			player.pause()
-			player.replace(AUDIO_SOURCE)
+			player.replace(streamUrl)
 			setStoppedByUser(true)
 			setIsLiveEdge(true)
 			setHasStartedPlayback(true)
 		} catch (err) {
 			setError(`Stop failed: ${String(err)}`)
 		}
-	}, [player, hasStartedPlayback, status.playing])
+	}, [player, hasStartedPlayback, status.playing, streamUrl])
 
+	/** Play, or full stop (not buffer pause) when already playing. */
 	const toggle = useCallback(() => {
 		if (status.playing) {
-			pause()
+			stop()
 		} else {
 			play()
 		}
-	}, [status.playing, play, pause])
+	}, [status.playing, play, stop])
 
 	return {
 		player,

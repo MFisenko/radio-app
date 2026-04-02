@@ -14,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.akveo.radio-app"
+      "bundleIdentifier": "com.akveo.radioapp"
     },
     "android": {
       "adaptiveIcon": {
