@@ -48,12 +48,7 @@ export function useRadioPlayer(options: UseRadioPlayerOptions) {
 		if (!playing && hasStartedPlayback && !stoppedByUser)
 			return ERadioUiState.PAUSED
 		return ERadioUiState.IDLE
-	}, [
-		status.playing,
-		isLiveEdge,
-		stoppedByUser,
-		hasStartedPlayback,
-	])
+	}, [status.playing, isLiveEdge, stoppedByUser, hasStartedPlayback])
 
 	useEffect(() => {
 		async function setup() {
