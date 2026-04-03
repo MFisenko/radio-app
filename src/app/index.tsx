@@ -1,5 +1,5 @@
 import { Image } from 'expo-image'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -7,11 +7,18 @@ import LivePingDot from '../components/shared/LivePingDot'
 import PlayerControls from '../components/shared/PlayerControls'
 import Vinyl from '../components/shared/Vinyl'
 import {
+	DEFAULT_RADIO_CHANNELS,
+	type RadioChannel,
 	channelAccentHex,
 	channelGradientColors,
-	config,
 	getChannelStreamUrl,
 } from '../config'
+import {
+	fetchAndActivateRemoteConfig,
+	getRemoteRadioChannels,
+	initRemoteConfig,
+	trackEvent,
+} from '../firebase/config'
 import { useRadioPlayer } from '../hooks/useRadioPlayer'
 import { ERadioUiState } from '../models/player.model'
 
@@ -31,24 +38,90 @@ const STATUS_TEXT_CLASS: Record<ERadioUiState, string> = {
 	[ERadioUiState.STOPPED]: 'text-neutral-500',
 }
 
-const CHANNELS = [...config].sort((a, b) => a.position - b.position)
+const CONFIG_SOURCE_LABEL: Record<'loading' | 'remote' | 'default' | 'static' | 'error', string> = {
+	loading: 'Loading config',
+	remote: 'Remote Config live',
+	default: 'Remote Config default',
+	static: 'Bundled fallback',
+	error: 'Remote Config error',
+}
+
+const CONFIG_SOURCE_CLASS: Record<'loading' | 'remote' | 'default' | 'static' | 'error', string> = {
+	loading: 'text-neutral-500',
+	remote: 'text-emerald-700',
+	default: 'text-amber-700',
+	static: 'text-neutral-600',
+	error: 'text-red-700',
+}
 
 export default function Index() {
+	const [channels, setChannels] = useState<RadioChannel[]>(DEFAULT_RADIO_CHANNELS)
 	const [channelIndex, setChannelIndex] = useState(0)
-	const channel = CHANNELS[channelIndex]
+	const [configSource, setConfigSource] = useState<
+		'loading' | 'remote' | 'default' | 'static' | 'error'
+	>('loading')
+	const [bootstrapError, setBootstrapError] = useState<string | null>(null)
+	const channel = channels[channelIndex] ?? channels[0]
+
+	// Initialize Firebase services
+	useEffect(() => {
+		let mounted = true
+
+		async function bootstrap() {
+			await initRemoteConfig()
+			await fetchAndActivateRemoteConfig()
+			if (!mounted) {
+				return
+			}
+
+			const remoteChannels = getRemoteRadioChannels()
+			setChannels(remoteChannels.channels)
+			setConfigSource(
+				remoteChannels.isValid ? remoteChannels.source : 'error'
+			)
+			setBootstrapError(
+				remoteChannels.isValid
+					? null
+					: 'Remote Config payload is invalid. Using bundled channels.'
+			)
+			await trackEvent('app_open')
+		}
+
+		bootstrap().catch(error => {
+			console.error('Firebase bootstrap error:', error)
+			if (!mounted) {
+				return
+			}
+
+			setConfigSource('error')
+			setBootstrapError('Remote Config request failed. Using bundled channels.')
+		})
+
+		return () => {
+			mounted = false
+		}
+	}, [])
+
+	useEffect(() => {
+		if (channelIndex < channels.length) {
+			return
+		}
+
+		setChannelIndex(0)
+	}, [channelIndex, channels.length])
 
 	const streamUrl = useMemo(
-		() => getChannelStreamUrl(CHANNELS[channelIndex]),
-		[channelIndex],
+		() => getChannelStreamUrl(channel),
+		[channel],
 	)
 
 	const lockScreenMeta = useMemo(
 		() => ({
-			title: CHANNELS[channelIndex].name_be,
-			artist: CHANNELS[channelIndex].info_be,
+			title: channel.name_be,
+			artist: channel.info_be,
 			albumTitle: 'Unistar',
 		}),
-		[channelIndex],
+		[channel],
 	)
 
 	const { error, isPlaying, radioUiState, toggle } = useRadioPlayer({
@@ -62,18 +135,26 @@ export default function Index() {
 	)
 
 	const goPrevChannel = useCallback(() => {
-		setChannelIndex(i => (i === 0 ? CHANNELS.length - 1 : i - 1))
-	}, [])
+		setChannelIndex(i => (i === 0 ? channels.length - 1 : i - 1))
+	}, [channels.length])
 
 	const goNextChannel = useCallback(() => {
-		setChannelIndex(i => (i === CHANNELS.length - 1 ? 0 : i + 1))
-	}, [])
+		setChannelIndex(i => (i === channels.length - 1 ? 0 : i + 1))
+	}, [channels.length])
 
 	return (
 		<SafeAreaView className='flex-1' edges={['top', 'bottom']}>
 			<View className='flex-1 pt-5 px-5'>
 				<View className='flex-1 justify-center gap-12'>
 					<View className='items-center gap-2'>
+						<Text
+							className={`text-[11px] font-medium uppercase tracking-widest font-mono ${CONFIG_SOURCE_CLASS[configSource]}`}
+						>
+							{CONFIG_SOURCE_LABEL[configSource]}
+						</Text>
+						<Text className='text-[10px] font-medium uppercase tracking-widest text-neutral-400 font-mono'>
+							{channels.length} channels loaded
+						</Text>
 						<Text className='text-[11px] font-medium uppercase tracking-widest text-neutral-500 font-mono'>
 							Current status
 						</Text>
@@ -107,7 +188,7 @@ export default function Index() {
 						showsHorizontalScrollIndicator={false}
 						contentContainerClassName='gap-4 px-2 items-center'
 					>
-						{CHANNELS.map((ch, i) => {
+						{channels.map((ch, i) => {
 							const selected = i === channelIndex
 							return (
 								<Pressable
@@ -132,6 +213,12 @@ export default function Index() {
 						})}
 					</ScrollView>
 				</View>
+
+				{bootstrapError ? (
+					<Text className='mb-2 text-center text-sm text-amber-700'>
+						{bootstrapError}
+					</Text>
+				) : null}
 
 				{error ? (
 					<Text className='mb-2 text-center text-sm text-red-600'>{error}</Text>

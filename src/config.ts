@@ -1,5 +1,7 @@
 export type RadioStream = { url: string }
 
+export const RADIO_CHANNELS_REMOTE_KEY = 'radio_channels_config'
+
 export type RadioChannel = {
 	id: number
 	name: string
@@ -21,6 +23,58 @@ export type RadioChannel = {
 	placeholder_path: string
 	placeholder: string
 	available_streams: RadioStream[]
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null
+}
+
+function isRadioStream(value: unknown): value is RadioStream {
+	return isRecord(value) && typeof value.url === 'string' && value.url.length > 0
+}
+
+function isRadioChannel(value: unknown): value is RadioChannel {
+	return (
+		isRecord(value) &&
+		typeof value.id === 'number' &&
+		typeof value.name === 'string' &&
+		typeof value.name_be === 'string' &&
+		typeof value.name_en === 'string' &&
+		typeof value.alt_name === 'string' &&
+		typeof value.info === 'string' &&
+		typeof value.info_be === 'string' &&
+		typeof value.info_en === 'string' &&
+		typeof value.position === 'number' &&
+		typeof value.color === 'string' &&
+		typeof value.public_channel === 'boolean' &&
+		typeof value.postfix === 'string' &&
+		typeof value.media_postfix === 'string' &&
+		typeof value.icon === 'string' &&
+		typeof value.use_site_media === 'boolean' &&
+		typeof value.pics_path === 'string' &&
+		typeof value.hooks_path === 'string' &&
+		typeof value.placeholder_path === 'string' &&
+		typeof value.placeholder === 'string' &&
+		Array.isArray(value.available_streams) &&
+		value.available_streams.every(isRadioStream)
+	)
+}
+
+export function sortRadioChannels(channels: RadioChannel[]): RadioChannel[] {
+	return [...channels].sort((a, b) => a.position - b.position)
+}
+
+export function parseRadioChannelsConfig(value: string): RadioChannel[] | null {
+	try {
+		const parsed = JSON.parse(value) as unknown
+		if (!Array.isArray(parsed) || !parsed.every(isRadioChannel)) {
+			return null
+		}
+
+		return sortRadioChannels(parsed)
+	} catch {
+		return null
+	}
 }
 
 export function getChannelStreamUrl(channel: RadioChannel): string {
@@ -270,3 +324,5 @@ export const config: RadioChannel[] = [
 		],
 	},
 ]
+
+export const DEFAULT_RADIO_CHANNELS = sortRadioChannels(config)
