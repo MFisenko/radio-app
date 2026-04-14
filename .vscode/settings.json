@@ -13,6 +13,7 @@
         "**/.plugin_symlinks": true,
         "**/.retool_types/**": true,
         ".cache": true,
-        "retool.config.json": true
+        "retool.config.json": true,
+        "**/*tsconfig.json": true
     }
 }
