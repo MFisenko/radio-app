@@ -49,3 +49,5 @@ google-services.json
 /android
 
 CLAUDE.md
+/.claude/
+/.vscode/
