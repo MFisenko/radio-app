@@ -4,4 +4,5 @@ export enum ERadioUiState {
 	BUFFER_PLAYING = 'buffer_playing',
 	PAUSED = 'paused',
 	STOPPED = 'stopped',
+	RECONNECTING = 'reconnecting',
 }

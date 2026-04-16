@@ -14,6 +14,7 @@ const STATUS_STYLES: Record<
 	[ERadioUiState.BUFFER_PLAYING]: { color: '#f59e0b', pulseEnabled: true },
 	[ERadioUiState.PAUSED]: { color: '#f59e0b', pulseEnabled: false },
 	[ERadioUiState.STOPPED]: { color: '#6b7280', pulseEnabled: false },
+	[ERadioUiState.RECONNECTING]: { color: '#f59e0b', pulseEnabled: true },
 }
 
 export type LivePingDotProps = {

@@ -6,6 +6,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { ERadioUiState } from '../models/player.model'
+import { useRetry } from './useRetry'
 
 export type RadioLockScreenMeta = {
 	title: string
@@ -38,9 +39,29 @@ export function useRadioPlayer(options: UseRadioPlayerOptions) {
 	const playingRef = useRef(status.playing)
 	playingRef.current = status.playing
 
+	const streamUrlRef = useRef(streamUrl)
+	streamUrlRef.current = streamUrl
+
+	const pausedByUserRef = useRef(false)
+
 	const streamUrlInitRef = useRef<string | null>(null)
 
+	const retry = useRetry({
+		maxAttempts: 3,
+		baseDelayMs: 1000,
+		onAttempt: () => {
+			try {
+				player.replace({ uri: streamUrlRef.current })
+				player.play()
+			} catch { /* наступна спроба через useEffect */ }
+		},
+		onExhausted: () => {
+			setError('Не вдалося підключитись. Перевірте інтернет-з\'єднання.')
+		},
+	})
+
 	const radioUiState = useMemo((): ERadioUiState => {
+		if (retry.isRetrying) return ERadioUiState.RECONNECTING
 		const playing = status.playing
 		if (playing && isLiveEdge) return ERadioUiState.LIVE_PLAYING
 		if (playing && !isLiveEdge) return ERadioUiState.BUFFER_PLAYING
@@ -48,7 +69,7 @@ export function useRadioPlayer(options: UseRadioPlayerOptions) {
 		if (!playing && hasStartedPlayback && !stoppedByUser)
 			return ERadioUiState.PAUSED
 		return ERadioUiState.IDLE
-	}, [status.playing, isLiveEdge, stoppedByUser, hasStartedPlayback])
+	}, [status.playing, isLiveEdge, stoppedByUser, hasStartedPlayback, retry.isRetrying])
 
 	useEffect(() => {
 		async function setup() {
@@ -72,6 +93,23 @@ export function useRadioPlayer(options: UseRadioPlayerOptions) {
 			} catch {}
 		}
 	}, [player])
+
+	// Detect stream failure and trigger retry
+	const wasPlayingRef = useRef(false)
+	useEffect(() => {
+		const wasPlaying = wasPlayingRef.current
+		wasPlayingRef.current = status.playing
+		if (wasPlaying && !status.playing && !pausedByUserRef.current && hasStartedPlayback) {
+			retry.scheduleRetry()
+		}
+	}, [status.playing])
+
+	// Reset retry on successful playback
+	useEffect(() => {
+		if (status.playing) {
+			retry.resetRetry()
+		}
+	}, [status.playing])
 
 	const activateControls = useCallback(() => {
 		player.setActiveForLockScreen(
@@ -98,6 +136,9 @@ export function useRadioPlayer(options: UseRadioPlayerOptions) {
 		}
 		streamUrlInitRef.current = streamUrl
 
+		retry.cancelRetry()
+		retry.resetRetry()
+
 		const resume = playingRef.current
 		try {
 			setError(null)
@@ -119,6 +160,7 @@ export function useRadioPlayer(options: UseRadioPlayerOptions) {
 			setError(null)
 			setStoppedByUser(false)
 			setHasStartedPlayback(true)
+			pausedByUserRef.current = false
 			activateControls()
 			player.play()
 		} catch (err) {
@@ -131,6 +173,7 @@ export function useRadioPlayer(options: UseRadioPlayerOptions) {
 			setError(null)
 			setIsLiveEdge(false)
 			setStoppedByUser(false)
+			pausedByUserRef.current = true
 			player.pause()
 		} catch (err) {
 			setError(`Pause failed: ${String(err)}`)
@@ -143,7 +186,10 @@ export function useRadioPlayer(options: UseRadioPlayerOptions) {
 				return
 			}
 			setError(null)
+			retry.cancelRetry()
+			retry.resetRetry()
 			player.setActiveForLockScreen(false)
+			pausedByUserRef.current = true
 			player.pause()
 			player.replace(streamUrl)
 			setStoppedByUser(true)
@@ -170,6 +216,7 @@ export function useRadioPlayer(options: UseRadioPlayerOptions) {
 		radioUiState,
 		isPlaying: status.playing,
 		isLiveEdge,
+		isReconnecting: retry.isRetrying,
 		play,
 		pause,
 		stop,
