@@ -28,6 +28,7 @@ const STATUS_LABEL: Record<ERadioUiState, string> = {
 	[ERadioUiState.BUFFER_PLAYING]: 'DELAYED',
 	[ERadioUiState.PAUSED]: 'PAUSED',
 	[ERadioUiState.STOPPED]: 'OFF',
+	[ERadioUiState.RECONNECTING]: 'RECONNECTING',
 }
 
 const STATUS_TEXT_CLASS: Record<ERadioUiState, string> = {
@@ -36,6 +37,7 @@ const STATUS_TEXT_CLASS: Record<ERadioUiState, string> = {
 	[ERadioUiState.BUFFER_PLAYING]: 'text-amber-600',
 	[ERadioUiState.PAUSED]: 'text-amber-600',
 	[ERadioUiState.STOPPED]: 'text-neutral-500',
+	[ERadioUiState.RECONNECTING]: 'text-amber-500',
 }
 
 const CONFIG_SOURCE_LABEL: Record<'loading' | 'remote' | 'default' | 'static' | 'error', string> = {
@@ -124,7 +126,7 @@ export default function Index() {
 		[channel],
 	)
 
-	const { error, isPlaying, radioUiState, toggle } = useRadioPlayer({
+	const { error, isPlaying, isReconnecting, radioUiState, toggle } = useRadioPlayer({
 		streamUrl,
 		lockScreenMeta,
 	})
@@ -230,6 +232,7 @@ export default function Index() {
 					onPrev={goPrevChannel}
 					onNext={goNextChannel}
 					accentColor={channelAccentHex(channel.color)}
+					disabled={isReconnecting}
 				/>
 			</View>
 		</SafeAreaView>
