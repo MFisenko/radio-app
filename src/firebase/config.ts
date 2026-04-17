@@ -16,6 +16,7 @@ import {
 	activate,
 	fetchAndActivate,
 	getValue,
+	onConfigUpdate,
 } from '@react-native-firebase/remote-config'
 import {
 	DEFAULT_RADIO_CHANNELS,
@@ -116,6 +117,24 @@ export type RemoteRadioChannelsResult = {
 	channels: RadioChannel[]
 	source: 'remote' | 'default' | 'static'
 	isValid: boolean
+}
+
+export const subscribeToRemoteConfigUpdates = (onUpdate: () => void): (() => void) => {
+	const rc = getRemoteConfig()
+	return onConfigUpdate(rc, {
+		next: async () => {
+			try {
+				await activate(rc)
+				onUpdate()
+			} catch (error) {
+				console.error('Remote config update activation error:', error)
+			}
+		},
+		error: (error) => {
+			console.error('Remote config update stream error:', error)
+		},
+		complete: () => {},
+	})
 }
 
 export const getRemoteRadioChannels = (): RemoteRadioChannelsResult => {
