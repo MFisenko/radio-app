@@ -80,14 +80,18 @@ export const getRemoteConfig = () => {
 
 const REMOTE_CONFIG_TIMEOUT_MS = 10_000
 
-// Fetch + activate Remote Config — resolves after timeout so defaults apply
-export const fetchAndActivateRemoteConfig = async () => {
+// Fetch + activate Remote Config — resolves after timeout so defaults apply.
+// Pass force=true to bypass the 12h cache (useful for manual refresh in dev).
+export const fetchAndActivateRemoteConfig = async (force = false) => {
 	try {
 		const rc = getRemoteConfig()
+		const fetchPromise = force
+			? fetch(rc, 0).then(() => activate(rc))
+			: fetchAndActivate(rc)
 		const timeout = new Promise<void>(resolve =>
 			setTimeout(resolve, REMOTE_CONFIG_TIMEOUT_MS)
 		)
-		await Promise.race([fetchAndActivate(rc), timeout])
+		await Promise.race([fetchPromise, timeout])
 	} catch (error) {
 		console.error('Remote config fetch error:', error)
 	}

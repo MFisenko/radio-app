@@ -13,8 +13,10 @@ import {
 	channelGradientColors,
 	getChannelStreamUrl,
 } from '../config'
+import { crash } from '@react-native-firebase/crashlytics'
 import {
 	fetchAndActivateRemoteConfig,
+	getCrashlytics,
 	getRemoteRadioChannels,
 	initRemoteConfig,
 	trackEvent,
@@ -141,7 +143,7 @@ export default function Index() {
 		setIsFetching(true)
 		setConfigSource('loading')
 		try {
-			await fetchAndActivateRemoteConfig()
+			await fetchAndActivateRemoteConfig(true)
 			const remoteChannels = getRemoteRadioChannels()
 			setChannels(remoteChannels.channels)
 			setConfigSource(remoteChannels.isValid ? remoteChannels.source : 'error')
@@ -183,15 +185,25 @@ export default function Index() {
 							{channels.length} channels loaded
 						</Text>
 						{__DEV__ && (
-							<Pressable
-								onPress={refetchConfig}
-								pointerEvents={isFetching ? 'none' : 'auto'}
-								className={`px-3 py-1 rounded bg-blue-100 active:opacity-70 ${isFetching ? 'opacity-40' : ''}`}
-							>
-								<Text className='text-[10px] font-mono text-blue-600 uppercase tracking-widest'>
-									{isFetching ? 'Fetching...' : 'Fetch Remote Config'}
-								</Text>
-							</Pressable>
+							<View className='flex-row gap-2'>
+								<Pressable
+									onPress={refetchConfig}
+									pointerEvents={isFetching ? 'none' : 'auto'}
+									className={`px-3 py-1 rounded bg-blue-100 active:opacity-70 ${isFetching ? 'opacity-40' : ''}`}
+								>
+									<Text className='text-[10px] font-mono text-blue-600 uppercase tracking-widest'>
+										{isFetching ? 'Fetching...' : 'Fetch Config'}
+									</Text>
+								</Pressable>
+								<Pressable
+									onPress={() => crash(getCrashlytics())}
+									className='px-3 py-1 rounded bg-red-100 active:opacity-70'
+								>
+									<Text className='text-[10px] font-mono text-red-600 uppercase tracking-widest'>
+										Test Crash
+									</Text>
+								</Pressable>
+							</View>
 						)}
 						<Text className='text-[11px] font-medium uppercase tracking-widest text-neutral-500 font-mono'>
 							Current status
