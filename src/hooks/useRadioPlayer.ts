@@ -105,7 +105,7 @@ export function useRadioPlayer(options: UseRadioPlayerOptions) {
 		if (wasPlaying && !status.playing && !pausedByUserRef.current && hasStartedPlayback) {
 			retry.scheduleRetry()
 		}
-	}, [status.playing])
+	}, [status.playing, hasStartedPlayback])
 
 	// Reset retry on successful playback
 	useEffect(() => {

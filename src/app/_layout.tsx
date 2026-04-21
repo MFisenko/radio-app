@@ -10,6 +10,7 @@ import { useEffect } from 'react'
 import { View } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 
+import { initCrashlytics } from '../firebase/config'
 import './globals.css'
 
 void SplashScreen.preventAutoHideAsync()
@@ -20,6 +21,10 @@ export default function RootLayout() {
 		JetBrainsMonoMedium: JetBrainsMono_500Medium,
 		JetBrainsMonoBold: JetBrainsMono_700Bold,
 	})
+
+	useEffect(() => {
+		void initCrashlytics()
+	}, [])
 
 	useEffect(() => {
 		if (fontsLoaded || fontError) {
