@@ -185,8 +185,8 @@ export default function Index() {
 						{__DEV__ && (
 							<Pressable
 								onPress={refetchConfig}
-								disabled={isFetching}
-								className='px-3 py-1 rounded bg-blue-100 active:opacity-70 disabled:opacity-40'
+								pointerEvents={isFetching ? 'none' : 'auto'}
+								className={`px-3 py-1 rounded bg-blue-100 active:opacity-70 ${isFetching ? 'opacity-40' : ''}`}
 							>
 								<Text className='text-[10px] font-mono text-blue-600 uppercase tracking-widest'>
 									{isFetching ? 'Fetching...' : 'Fetch Remote Config'}
