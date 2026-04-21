@@ -1,5 +1,5 @@
 import { Image } from 'expo-image'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -19,6 +19,7 @@ import {
 	getCrashlytics,
 	getRemoteRadioChannels,
 	initRemoteConfig,
+	subscribeToRemoteConfigUpdates,
 	trackEvent,
 } from '../firebase/config'
 import { useRadioPlayer } from '../hooks/useRadioPlayer'
@@ -71,39 +72,43 @@ export default function Index() {
 	// Initialize Firebase services
 	useEffect(() => {
 		let mounted = true
+		let unsubscribeConfig: (() => void) | null = null
 
-		async function bootstrap() {
-			await initRemoteConfig()
-			await fetchAndActivateRemoteConfig()
-			if (!mounted) {
-				return
-			}
-
+		function applyRemoteChannels() {
 			const remoteChannels = getRemoteRadioChannels()
 			setChannels(remoteChannels.channels)
-			setConfigSource(
-				remoteChannels.isValid ? remoteChannels.source : 'error'
-			)
+			setConfigSource(remoteChannels.isValid ? remoteChannels.source : 'error')
 			setBootstrapError(
 				remoteChannels.isValid
 					? null
 					: 'Remote Config payload is invalid. Using bundled channels.'
 			)
+		}
+
+		async function bootstrap() {
+			await initRemoteConfig()
+			await fetchAndActivateRemoteConfig()
+			if (!mounted) return
+
+			applyRemoteChannels()
 			await trackEvent('app_open')
+
+			unsubscribeConfig = subscribeToRemoteConfigUpdates(() => {
+				if (!mounted) return
+				applyRemoteChannels()
+			})
 		}
 
 		bootstrap().catch(error => {
 			console.error('Firebase bootstrap error:', error)
-			if (!mounted) {
-				return
-			}
-
+			if (!mounted) return
 			setConfigSource('error')
 			setBootstrapError('Remote Config request failed. Using bundled channels.')
 		})
 
 		return () => {
 			mounted = false
+			unsubscribeConfig?.()
 		}
 	}, [])
 
@@ -114,6 +119,18 @@ export default function Index() {
 
 		setChannelIndex(0)
 	}, [channelIndex, channels.length])
+
+	const hasTrackedInitialChannel = useRef(false)
+	useEffect(() => {
+		if (!hasTrackedInitialChannel.current) {
+			hasTrackedInitialChannel.current = true
+			return
+		}
+		void trackEvent('channel_select', {
+			channel_id: channel.id,
+			channel_name: channel.alt_name,
+		})
+	}, [channel])
 
 	const streamUrl = useMemo(
 		() => getChannelStreamUrl(channel),

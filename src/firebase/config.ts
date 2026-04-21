@@ -5,7 +5,6 @@ import {
 } from '@react-native-firebase/analytics'
 import {
 	getCrashlytics as rnGetCrashlytics,
-	setCrashlyticsCollectionEnabled,
 	log as crashlyticsLog,
 	recordError,
 } from '@react-native-firebase/crashlytics'
@@ -16,6 +15,7 @@ import {
 	activate,
 	fetchAndActivate,
 	getValue,
+	onConfigUpdate,
 } from '@react-native-firebase/remote-config'
 import {
 	DEFAULT_RADIO_CHANNELS,
@@ -40,11 +40,8 @@ export const trackEvent = async (
 	await logEvent(getAnalytics(), name, params)
 }
 
-// Enable Crashlytics collection
-export const initCrashlytics = async () => {
-	const instance = rnGetCrashlytics()
-	await setCrashlyticsCollectionEnabled(instance, true)
-	return instance
+export const initCrashlytics = () => {
+	crashlyticsLog(rnGetCrashlytics(), 'App mounted.')
 }
 
 // Crashlytics instance
@@ -125,6 +122,24 @@ export type RemoteRadioChannelsResult = {
 	channels: RadioChannel[]
 	source: 'remote' | 'default' | 'static'
 	isValid: boolean
+}
+
+export const subscribeToRemoteConfigUpdates = (onUpdate: () => void): (() => void) => {
+	const rc = getRemoteConfig()
+	return onConfigUpdate(rc, {
+		next: async () => {
+			try {
+				await activate(rc)
+				onUpdate()
+			} catch (error) {
+				console.error('Remote config update activation error:', error)
+			}
+		},
+		error: (error) => {
+			console.error('Remote config update stream error:', error)
+		},
+		complete: () => {},
+	})
 }
 
 export const getRemoteRadioChannels = (): RemoteRadioChannelsResult => {
