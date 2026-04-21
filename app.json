@@ -58,7 +58,8 @@
       ],
       "expo-router",
       "expo-image",
-      "expo-font"
+      "expo-font",
+      "expo-localization"
     ]
   }
 }

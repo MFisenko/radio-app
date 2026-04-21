@@ -1,0 +1,22 @@
+{
+	"enums": {
+		"locales": {
+			"en": "English",
+			"ru": "Русский"
+		},
+		"radioState": {
+			"IDLE": "Ready",
+			"LIVE_PLAYING": "Live",
+			"BUFFER_PLAYING": "Delayed",
+			"PAUSED": "Pause",
+			"STOPPED": "Off",
+			"RECONNECTING": "Reconnecting"
+		}
+	},
+
+	"common": {},
+
+	"pages": {
+		"homepage": {}
+	}
+}
