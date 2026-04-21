@@ -63,6 +63,7 @@ export default function Index() {
 		'loading' | 'remote' | 'default' | 'static' | 'error'
 	>('loading')
 	const [bootstrapError, setBootstrapError] = useState<string | null>(null)
+	const [isFetching, setIsFetching] = useState(false)
 	const channel = channels[channelIndex] ?? channels[0]
 
 	// Initialize Firebase services
@@ -136,6 +137,27 @@ export default function Index() {
 		[channel.color],
 	)
 
+	const refetchConfig = useCallback(async () => {
+		setIsFetching(true)
+		setConfigSource('loading')
+		try {
+			await fetchAndActivateRemoteConfig()
+			const remoteChannels = getRemoteRadioChannels()
+			setChannels(remoteChannels.channels)
+			setConfigSource(remoteChannels.isValid ? remoteChannels.source : 'error')
+			setBootstrapError(
+				remoteChannels.isValid
+					? null
+					: 'Remote Config payload is invalid. Using bundled channels.'
+			)
+		} catch {
+			setConfigSource('error')
+			setBootstrapError('Remote Config request failed. Using bundled channels.')
+		} finally {
+			setIsFetching(false)
+		}
+	}, [])
+
 	const goPrevChannel = useCallback(() => {
 		setChannelIndex(i => (i === 0 ? channels.length - 1 : i - 1))
 	}, [channels.length])
@@ -149,6 +171,9 @@ export default function Index() {
 			<View className='flex-1 pt-5 px-5'>
 				<View className='flex-1 justify-center gap-12'>
 					<View className='items-center gap-2'>
+						<Text className='text-[10px] font-medium uppercase tracking-widest text-neutral-400 font-mono'>
+							Config source
+						</Text>
 						<Text
 							className={`text-[11px] font-medium uppercase tracking-widest font-mono ${CONFIG_SOURCE_CLASS[configSource]}`}
 						>
@@ -157,6 +182,17 @@ export default function Index() {
 						<Text className='text-[10px] font-medium uppercase tracking-widest text-neutral-400 font-mono'>
 							{channels.length} channels loaded
 						</Text>
+						{__DEV__ && (
+							<Pressable
+								onPress={refetchConfig}
+								disabled={isFetching}
+								className='px-3 py-1 rounded bg-blue-100 active:opacity-70 disabled:opacity-40'
+							>
+								<Text className='text-[10px] font-mono text-blue-600 uppercase tracking-widest'>
+									{isFetching ? 'Fetching...' : 'Fetch Remote Config'}
+								</Text>
+							</Pressable>
+						)}
 						<Text className='text-[11px] font-medium uppercase tracking-widest text-neutral-500 font-mono'>
 							Current status
 						</Text>
