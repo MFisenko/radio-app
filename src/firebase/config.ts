@@ -78,11 +78,16 @@ export const getRemoteConfig = () => {
 	return rnGetRemoteConfig(getApp())
 }
 
-// Fetch + activate Remote Config
+const REMOTE_CONFIG_TIMEOUT_MS = 10_000
+
+// Fetch + activate Remote Config — resolves after timeout so defaults apply
 export const fetchAndActivateRemoteConfig = async () => {
 	try {
 		const rc = getRemoteConfig()
-		await fetchAndActivate(rc)
+		const timeout = new Promise<void>(resolve =>
+			setTimeout(resolve, REMOTE_CONFIG_TIMEOUT_MS)
+		)
+		await Promise.race([fetchAndActivate(rc), timeout])
 	} catch (error) {
 		console.error('Remote config fetch error:', error)
 	}
