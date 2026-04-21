@@ -13,8 +13,10 @@ import {
 	channelGradientColors,
 	getChannelStreamUrl,
 } from '../config'
+import { crash } from '@react-native-firebase/crashlytics'
 import {
 	fetchAndActivateRemoteConfig,
+	getCrashlytics,
 	getRemoteRadioChannels,
 	initRemoteConfig,
 	subscribeToRemoteConfigUpdates,
@@ -174,6 +176,16 @@ export default function Index() {
 						<Text className='text-[10px] font-medium uppercase tracking-widest text-neutral-400 font-mono'>
 							{channels.length} channels loaded
 						</Text>
+						{__DEV__ && (
+							<Pressable
+								onPress={() => crash(getCrashlytics())}
+								className='px-3 py-1 rounded bg-red-100 active:opacity-70'
+							>
+								<Text className='text-[10px] font-mono text-red-600 uppercase tracking-widest'>
+									Test Crash
+								</Text>
+							</Pressable>
+						)}
 						<Text className='text-[11px] font-medium uppercase tracking-widest text-neutral-500 font-mono'>
 							Current status
 						</Text>

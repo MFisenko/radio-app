@@ -5,7 +5,6 @@ import {
 } from '@react-native-firebase/analytics'
 import {
 	getCrashlytics as rnGetCrashlytics,
-	setCrashlyticsCollectionEnabled,
 	log as crashlyticsLog,
 	recordError,
 } from '@react-native-firebase/crashlytics'
@@ -41,11 +40,8 @@ export const trackEvent = async (
 	await logEvent(getAnalytics(), name, params)
 }
 
-// Enable Crashlytics collection
-export const initCrashlytics = async () => {
-	const instance = rnGetCrashlytics()
-	await setCrashlyticsCollectionEnabled(instance, true)
-	return instance
+export const initCrashlytics = () => {
+	crashlyticsLog(rnGetCrashlytics(), 'App mounted.')
 }
 
 // Crashlytics instance
