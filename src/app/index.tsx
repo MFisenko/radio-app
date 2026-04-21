@@ -1,5 +1,5 @@
 import { Image } from 'expo-image'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -13,10 +13,13 @@ import {
 	channelGradientColors,
 	getChannelStreamUrl,
 } from '../config'
+import { crash } from '@react-native-firebase/crashlytics'
 import {
 	fetchAndActivateRemoteConfig,
+	getCrashlytics,
 	getRemoteRadioChannels,
 	initRemoteConfig,
+	subscribeToRemoteConfigUpdates,
 	trackEvent,
 } from '../firebase/config'
 import { useRadioPlayer } from '../hooks/useRadioPlayer'
@@ -63,44 +66,49 @@ export default function Index() {
 		'loading' | 'remote' | 'default' | 'static' | 'error'
 	>('loading')
 	const [bootstrapError, setBootstrapError] = useState<string | null>(null)
+	const [isFetching, setIsFetching] = useState(false)
 	const channel = channels[channelIndex] ?? channels[0]
 
 	// Initialize Firebase services
 	useEffect(() => {
 		let mounted = true
+		let unsubscribeConfig: (() => void) | null = null
 
-		async function bootstrap() {
-			await initRemoteConfig()
-			await fetchAndActivateRemoteConfig()
-			if (!mounted) {
-				return
-			}
-
+		function applyRemoteChannels() {
 			const remoteChannels = getRemoteRadioChannels()
 			setChannels(remoteChannels.channels)
-			setConfigSource(
-				remoteChannels.isValid ? remoteChannels.source : 'error'
-			)
+			setConfigSource(remoteChannels.isValid ? remoteChannels.source : 'error')
 			setBootstrapError(
 				remoteChannels.isValid
 					? null
 					: 'Remote Config payload is invalid. Using bundled channels.'
 			)
+		}
+
+		async function bootstrap() {
+			await initRemoteConfig()
+			await fetchAndActivateRemoteConfig()
+			if (!mounted) return
+
+			applyRemoteChannels()
 			await trackEvent('app_open')
+
+			unsubscribeConfig = subscribeToRemoteConfigUpdates(() => {
+				if (!mounted) return
+				applyRemoteChannels()
+			})
 		}
 
 		bootstrap().catch(error => {
 			console.error('Firebase bootstrap error:', error)
-			if (!mounted) {
-				return
-			}
-
+			if (!mounted) return
 			setConfigSource('error')
 			setBootstrapError('Remote Config request failed. Using bundled channels.')
 		})
 
 		return () => {
 			mounted = false
+			unsubscribeConfig?.()
 		}
 	}, [])
 
@@ -111,6 +119,18 @@ export default function Index() {
 
 		setChannelIndex(0)
 	}, [channelIndex, channels.length])
+
+	const hasTrackedInitialChannel = useRef(false)
+	useEffect(() => {
+		if (!hasTrackedInitialChannel.current) {
+			hasTrackedInitialChannel.current = true
+			return
+		}
+		void trackEvent('channel_select', {
+			channel_id: channel.id,
+			channel_name: channel.alt_name,
+		})
+	}, [channel])
 
 	const streamUrl = useMemo(
 		() => getChannelStreamUrl(channel),
@@ -136,6 +156,27 @@ export default function Index() {
 		[channel.color],
 	)
 
+	const refetchConfig = useCallback(async () => {
+		setIsFetching(true)
+		setConfigSource('loading')
+		try {
+			await fetchAndActivateRemoteConfig(true)
+			const remoteChannels = getRemoteRadioChannels()
+			setChannels(remoteChannels.channels)
+			setConfigSource(remoteChannels.isValid ? remoteChannels.source : 'error')
+			setBootstrapError(
+				remoteChannels.isValid
+					? null
+					: 'Remote Config payload is invalid. Using bundled channels.'
+			)
+		} catch {
+			setConfigSource('error')
+			setBootstrapError('Remote Config request failed. Using bundled channels.')
+		} finally {
+			setIsFetching(false)
+		}
+	}, [])
+
 	const goPrevChannel = useCallback(() => {
 		setChannelIndex(i => (i === 0 ? channels.length - 1 : i - 1))
 	}, [channels.length])
@@ -149,6 +190,9 @@ export default function Index() {
 			<View className='flex-1 pt-5 px-5'>
 				<View className='flex-1 justify-center gap-12'>
 					<View className='items-center gap-2'>
+						<Text className='text-[10px] font-medium uppercase tracking-widest text-neutral-400 font-mono'>
+							Config source
+						</Text>
 						<Text
 							className={`text-[11px] font-medium uppercase tracking-widest font-mono ${CONFIG_SOURCE_CLASS[configSource]}`}
 						>
@@ -157,6 +201,27 @@ export default function Index() {
 						<Text className='text-[10px] font-medium uppercase tracking-widest text-neutral-400 font-mono'>
 							{channels.length} channels loaded
 						</Text>
+						{__DEV__ && (
+							<View className='flex-row gap-2'>
+								<Pressable
+									onPress={refetchConfig}
+									pointerEvents={isFetching ? 'none' : 'auto'}
+									className={`px-3 py-1 rounded bg-blue-100 active:opacity-70 ${isFetching ? 'opacity-40' : ''}`}
+								>
+									<Text className='text-[10px] font-mono text-blue-600 uppercase tracking-widest'>
+										{isFetching ? 'Fetching...' : 'Fetch Config'}
+									</Text>
+								</Pressable>
+								<Pressable
+									onPress={() => crash(getCrashlytics())}
+									className='px-3 py-1 rounded bg-red-100 active:opacity-70'
+								>
+									<Text className='text-[10px] font-mono text-red-600 uppercase tracking-widest'>
+										Test Crash
+									</Text>
+								</Pressable>
+							</View>
+						)}
 						<Text className='text-[11px] font-medium uppercase tracking-widest text-neutral-500 font-mono'>
 							Current status
 						</Text>

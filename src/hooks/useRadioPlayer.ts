@@ -5,6 +5,7 @@ import {
 } from 'expo-audio'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { trackEvent } from '../firebase/config'
 import { ERadioUiState } from '../models/player.model'
 import { useRetry } from './useRetry'
 
@@ -33,7 +34,7 @@ export function useRadioPlayer(options: UseRadioPlayerOptions) {
 	const [stoppedByUser, setStoppedByUser] = useState(false)
 	const [hasStartedPlayback, setHasStartedPlayback] = useState(false)
 
-	const player = useAudioPlayer(streamUrl)
+	const player = useAudioPlayer(streamUrl || null)
 	const status = useAudioPlayerStatus(player)
 
 	const playingRef = useRef(status.playing)
@@ -50,12 +51,14 @@ export function useRadioPlayer(options: UseRadioPlayerOptions) {
 		maxAttempts: 3,
 		baseDelayMs: 1000,
 		onAttempt: () => {
+			void trackEvent('stream_retry', { channel: lockScreenMeta.title })
 			try {
 				player.replace({ uri: streamUrlRef.current })
 				player.play()
 			} catch { /* наступна спроба через useEffect */ }
 		},
 		onExhausted: () => {
+			void trackEvent('stream_retry_exhausted', { channel: lockScreenMeta.title })
 			setError('Не вдалося підключитись. Перевірте інтернет-з\'єднання.')
 		},
 	})
@@ -102,7 +105,7 @@ export function useRadioPlayer(options: UseRadioPlayerOptions) {
 		if (wasPlaying && !status.playing && !pausedByUserRef.current && hasStartedPlayback) {
 			retry.scheduleRetry()
 		}
-	}, [status.playing])
+	}, [status.playing, hasStartedPlayback])
 
 	// Reset retry on successful playback
 	useEffect(() => {
@@ -157,6 +160,7 @@ export function useRadioPlayer(options: UseRadioPlayerOptions) {
 
 	const play = useCallback(() => {
 		try {
+			void trackEvent('playback_play', { channel: lockScreenMeta.title })
 			setError(null)
 			setStoppedByUser(false)
 			setHasStartedPlayback(true)
@@ -166,7 +170,7 @@ export function useRadioPlayer(options: UseRadioPlayerOptions) {
 		} catch (err) {
 			setError(`Play failed: ${String(err)}`)
 		}
-	}, [player, activateControls])
+	}, [player, activateControls, lockScreenMeta.title])
 
 	const pause = useCallback(() => {
 		try {
@@ -185,6 +189,7 @@ export function useRadioPlayer(options: UseRadioPlayerOptions) {
 			if (!hasStartedPlayback && !status.playing) {
 				return
 			}
+			void trackEvent('playback_stop', { channel: lockScreenMeta.title })
 			setError(null)
 			retry.cancelRetry()
 			retry.resetRetry()
@@ -198,7 +203,7 @@ export function useRadioPlayer(options: UseRadioPlayerOptions) {
 		} catch (err) {
 			setError(`Stop failed: ${String(err)}`)
 		}
-	}, [player, hasStartedPlayback, status.playing, streamUrl])
+	}, [player, hasStartedPlayback, status.playing, streamUrl, lockScreenMeta.title])
 
 	/** Play, or full stop (not buffer pause) when already playing. */
 	const toggle = useCallback(() => {

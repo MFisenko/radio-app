@@ -5,7 +5,6 @@ import {
 } from '@react-native-firebase/analytics'
 import {
 	getCrashlytics as rnGetCrashlytics,
-	setCrashlyticsCollectionEnabled,
 	log as crashlyticsLog,
 	recordError,
 } from '@react-native-firebase/crashlytics'
@@ -16,6 +15,7 @@ import {
 	activate,
 	fetchAndActivate,
 	getValue,
+	onConfigUpdate,
 } from '@react-native-firebase/remote-config'
 import {
 	DEFAULT_RADIO_CHANNELS,
@@ -40,11 +40,8 @@ export const trackEvent = async (
 	await logEvent(getAnalytics(), name, params)
 }
 
-// Enable Crashlytics collection
-export const initCrashlytics = async () => {
-	const instance = rnGetCrashlytics()
-	await setCrashlyticsCollectionEnabled(instance, true)
-	return instance
+export const initCrashlytics = () => {
+	crashlyticsLog(rnGetCrashlytics(), 'App mounted.')
 }
 
 // Crashlytics instance
@@ -78,11 +75,20 @@ export const getRemoteConfig = () => {
 	return rnGetRemoteConfig(getApp())
 }
 
-// Fetch + activate Remote Config
-export const fetchAndActivateRemoteConfig = async () => {
+const REMOTE_CONFIG_TIMEOUT_MS = 10_000
+
+// Fetch + activate Remote Config — resolves after timeout so defaults apply.
+// Pass force=true to bypass the 12h cache (useful for manual refresh in dev).
+export const fetchAndActivateRemoteConfig = async (force = false) => {
 	try {
 		const rc = getRemoteConfig()
-		await fetchAndActivate(rc)
+		const fetchPromise = force
+			? fetch(rc, 0).then(() => activate(rc))
+			: fetchAndActivate(rc)
+		const timeout = new Promise<void>(resolve =>
+			setTimeout(resolve, REMOTE_CONFIG_TIMEOUT_MS)
+		)
+		await Promise.race([fetchPromise, timeout])
 	} catch (error) {
 		console.error('Remote config fetch error:', error)
 	}
@@ -116,6 +122,24 @@ export type RemoteRadioChannelsResult = {
 	channels: RadioChannel[]
 	source: 'remote' | 'default' | 'static'
 	isValid: boolean
+}
+
+export const subscribeToRemoteConfigUpdates = (onUpdate: () => void): (() => void) => {
+	const rc = getRemoteConfig()
+	return onConfigUpdate(rc, {
+		next: async () => {
+			try {
+				await activate(rc)
+				onUpdate()
+			} catch (error) {
+				console.error('Remote config update activation error:', error)
+			}
+		},
+		error: (error) => {
+			console.error('Remote config update stream error:', error)
+		},
+		complete: () => {},
+	})
 }
 
 export const getRemoteRadioChannels = (): RemoteRadioChannelsResult => {
