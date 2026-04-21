@@ -9,8 +9,9 @@ import * as SplashScreen from 'expo-splash-screen'
 import { useEffect } from 'react'
 import { View } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
-
 import { initCrashlytics } from '../firebase/config'
+import { LocaleProvider } from '../providers/LocaleProvider'
+import { ThemeProvider } from '../providers/ThemeProvider'
 import './globals.css'
 
 void SplashScreen.preventAutoHideAsync()
@@ -37,10 +38,14 @@ export default function RootLayout() {
 	}
 
 	return (
-		<SafeAreaProvider>
-			<View className='flex-1 font-sans'>
-				<Stack screenOptions={{ headerShown: false }} />
-			</View>
-		</SafeAreaProvider>
+		<ThemeProvider>
+			<LocaleProvider>
+				<SafeAreaProvider>
+					<View className='flex-1 font-sans'>
+						<Stack screenOptions={{ headerShown: false }} />
+					</View>
+				</SafeAreaProvider>
+			</LocaleProvider>
+		</ThemeProvider>
 	)
 }

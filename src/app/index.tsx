@@ -1,10 +1,11 @@
+import { crash } from '@react-native-firebase/crashlytics'
 import { Image } from 'expo-image'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Pressable, ScrollView, Text, View } from 'react-native'
-
+import { Pressable, ScrollView, Switch, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import LivePingDot from '../components/shared/LivePingDot'
 import PlayerControls from '../components/shared/PlayerControls'
+import { ChangeLanguage } from '../components/shared/theme/ChangeLanguage'
 import Vinyl from '../components/shared/Vinyl'
 import {
 	DEFAULT_RADIO_CHANNELS,
@@ -13,7 +14,6 @@ import {
 	channelGradientColors,
 	getChannelStreamUrl,
 } from '../config'
-import { crash } from '@react-native-firebase/crashlytics'
 import {
 	fetchAndActivateRemoteConfig,
 	getCrashlytics,
@@ -24,15 +24,8 @@ import {
 } from '../firebase/config'
 import { useRadioPlayer } from '../hooks/useRadioPlayer'
 import { ERadioUiState } from '../models/player.model'
-
-const STATUS_LABEL: Record<ERadioUiState, string> = {
-	[ERadioUiState.IDLE]: 'READY',
-	[ERadioUiState.LIVE_PLAYING]: 'LIVE',
-	[ERadioUiState.BUFFER_PLAYING]: 'DELAYED',
-	[ERadioUiState.PAUSED]: 'PAUSED',
-	[ERadioUiState.STOPPED]: 'OFF',
-	[ERadioUiState.RECONNECTING]: 'RECONNECTING',
-}
+import { useLocale } from '../providers/LocaleProvider'
+import { useTheme } from '../providers/ThemeProvider'
 
 const STATUS_TEXT_CLASS: Record<ERadioUiState, string> = {
 	[ERadioUiState.IDLE]: 'text-neutral-400',
@@ -43,7 +36,10 @@ const STATUS_TEXT_CLASS: Record<ERadioUiState, string> = {
 	[ERadioUiState.RECONNECTING]: 'text-amber-500',
 }
 
-const CONFIG_SOURCE_LABEL: Record<'loading' | 'remote' | 'default' | 'static' | 'error', string> = {
+const CONFIG_SOURCE_LABEL: Record<
+	'loading' | 'remote' | 'default' | 'static' | 'error',
+	string
+> = {
 	loading: 'Loading config',
 	remote: 'Remote Config live',
 	default: 'Remote Config default',
@@ -51,7 +47,10 @@ const CONFIG_SOURCE_LABEL: Record<'loading' | 'remote' | 'default' | 'static' | 
 	error: 'Remote Config error',
 }
 
-const CONFIG_SOURCE_CLASS: Record<'loading' | 'remote' | 'default' | 'static' | 'error', string> = {
+const CONFIG_SOURCE_CLASS: Record<
+	'loading' | 'remote' | 'default' | 'static' | 'error',
+	string
+> = {
 	loading: 'text-neutral-500',
 	remote: 'text-emerald-700',
 	default: 'text-amber-700',
@@ -60,7 +59,21 @@ const CONFIG_SOURCE_CLASS: Record<'loading' | 'remote' | 'default' | 'static' | 
 }
 
 export default function Index() {
-	const [channels, setChannels] = useState<RadioChannel[]>(DEFAULT_RADIO_CHANNELS)
+	const { theme, toggleTheme } = useTheme()
+	const { t, locale } = useLocale()
+
+	const STATUS_LABEL: Record<ERadioUiState, string> = {
+		[ERadioUiState.IDLE]: t('enums.radioState.IDLE'),
+		[ERadioUiState.LIVE_PLAYING]: t('enums.radioState.LIVE_PLAYING'),
+		[ERadioUiState.BUFFER_PLAYING]: t('enums.radioState.BUFFER_PLAYING'),
+		[ERadioUiState.PAUSED]: t('enums.radioState.PAUSED'),
+		[ERadioUiState.STOPPED]: t('enums.radioState.STOPPED'),
+		[ERadioUiState.RECONNECTING]: t('enums.radioState.RECONNECTING'),
+	}
+
+	const [channels, setChannels] = useState<RadioChannel[]>(
+		DEFAULT_RADIO_CHANNELS,
+	)
 	const [channelIndex, setChannelIndex] = useState(0)
 	const [configSource, setConfigSource] = useState<
 		'loading' | 'remote' | 'default' | 'static' | 'error'
@@ -81,7 +94,7 @@ export default function Index() {
 			setBootstrapError(
 				remoteChannels.isValid
 					? null
-					: 'Remote Config payload is invalid. Using bundled channels.'
+					: 'Remote Config payload is invalid. Using bundled channels.',
 			)
 		}
 
@@ -132,10 +145,7 @@ export default function Index() {
 		})
 	}, [channel])
 
-	const streamUrl = useMemo(
-		() => getChannelStreamUrl(channel),
-		[channel],
-	)
+	const streamUrl = useMemo(() => getChannelStreamUrl(channel), [channel])
 
 	const lockScreenMeta = useMemo(
 		() => ({
@@ -146,10 +156,11 @@ export default function Index() {
 		[channel],
 	)
 
-	const { error, isPlaying, isReconnecting, radioUiState, toggle } = useRadioPlayer({
-		streamUrl,
-		lockScreenMeta,
-	})
+	const { error, isPlaying, isReconnecting, radioUiState, toggle } =
+		useRadioPlayer({
+			streamUrl,
+			lockScreenMeta,
+		})
 
 	const surfaceColors = useMemo(
 		() => channelGradientColors(channel.color),
@@ -167,7 +178,7 @@ export default function Index() {
 			setBootstrapError(
 				remoteChannels.isValid
 					? null
-					: 'Remote Config payload is invalid. Using bundled channels.'
+					: 'Remote Config payload is invalid. Using bundled channels.',
 			)
 		} catch {
 			setConfigSource('error')
@@ -222,6 +233,15 @@ export default function Index() {
 								</Pressable>
 							</View>
 						)}
+
+						<Switch
+							value={theme === 'dark'}
+							onValueChange={toggleTheme}
+							thumbColor='#ffffff'
+						/>
+
+						<ChangeLanguage />
+
 						<Text className='text-[11px] font-medium uppercase tracking-widest text-neutral-500 font-mono'>
 							Current status
 						</Text>
@@ -239,10 +259,12 @@ export default function Index() {
 							className='text-center text-3xl leading-tight text-neutral-900 font-mono'
 							numberOfLines={2}
 						>
-							{channel.name_be}
+							{/* FIXME: */}
+							{locale == 'ru' ? channel.name : channel[`name_${locale}`]}
 						</Text>
 						<Text className='text-center text-base text-neutral-600 font-mono'>
-							{channel.info_be}
+							{/* FIXME: */}
+							{locale == 'ru' ? channel.info : channel[`info_${locale}`]}
 						</Text>
 					</View>
 					<Vinyl
