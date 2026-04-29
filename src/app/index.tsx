@@ -40,11 +40,11 @@ const CONFIG_SOURCE_LABEL: Record<
 	'loading' | 'remote' | 'default' | 'static' | 'error',
 	string
 > = {
-	loading: 'Loading config',
-	remote: 'Remote Config live',
-	default: 'Remote Config default',
-	static: 'Bundled fallback',
-	error: 'Remote Config error',
+	loading: 'enums.configSource.loading',
+	remote: 'enums.configSource.remote',
+	default: 'enums.configSource.default',
+	static: 'enums.configSource.static',
+	error: 'enums.configSource.error',
 }
 
 const CONFIG_SOURCE_CLASS: Record<
@@ -94,7 +94,7 @@ export default function Index() {
 			setBootstrapError(
 				remoteChannels.isValid
 					? null
-					: 'Remote Config payload is invalid. Using bundled channels.',
+					: t('pages.homepage.errors.invalidRemoteConfig'),
 			)
 		}
 
@@ -178,15 +178,15 @@ export default function Index() {
 			setBootstrapError(
 				remoteChannels.isValid
 					? null
-					: 'Remote Config payload is invalid. Using bundled channels.',
+					: t('pages.homepage.errors.invalidRemoteConfig'),
 			)
 		} catch {
 			setConfigSource('error')
-			setBootstrapError('Remote Config request failed. Using bundled channels.')
+			setBootstrapError(t('pages.homepage.errors.failedRemoteConfig'))
 		} finally {
 			setIsFetching(false)
 		}
-	}, [])
+	}, [t])
 
 	const goPrevChannel = useCallback(() => {
 		setChannelIndex(i => (i === 0 ? channels.length - 1 : i - 1))
@@ -202,15 +202,15 @@ export default function Index() {
 				<View className='flex-1 justify-center gap-12'>
 					<View className='items-center gap-2'>
 						<Text className='text-[10px] font-medium uppercase tracking-widest text-neutral-400 font-mono'>
-							Config source
+							{t('common.configSource')}
 						</Text>
 						<Text
 							className={`text-[11px] font-medium uppercase tracking-widest font-mono ${CONFIG_SOURCE_CLASS[configSource]}`}
 						>
-							{CONFIG_SOURCE_LABEL[configSource]}
+							{t(CONFIG_SOURCE_LABEL[configSource])}
 						</Text>
 						<Text className='text-[10px] font-medium uppercase tracking-widest text-neutral-400 font-mono'>
-							{channels.length} channels loaded
+							{t('common.channelsLoaded', { count: channels.length.toString() })}
 						</Text>
 						{__DEV__ && (
 							<View className='flex-row gap-2'>
@@ -220,7 +220,7 @@ export default function Index() {
 									className={`px-3 py-1 rounded bg-blue-100 active:opacity-70 ${isFetching ? 'opacity-40' : ''}`}
 								>
 									<Text className='text-[10px] font-mono text-blue-600 uppercase tracking-widest'>
-										{isFetching ? 'Fetching...' : 'Fetch Config'}
+										{isFetching ? t('pages.homepage.dev.fetching') : t('pages.homepage.dev.fetchConfig')}
 									</Text>
 								</Pressable>
 								<Pressable
@@ -228,7 +228,7 @@ export default function Index() {
 									className='px-3 py-1 rounded bg-red-100 active:opacity-70'
 								>
 									<Text className='text-[10px] font-mono text-red-600 uppercase tracking-widest'>
-										Test Crash
+										{t('pages.homepage.dev.testCrash')}
 									</Text>
 								</Pressable>
 							</View>
@@ -243,7 +243,7 @@ export default function Index() {
 						<ChangeLanguage />
 
 						<Text className='text-[11px] font-medium uppercase tracking-widest text-neutral-500 font-mono'>
-							Current status
+							{t('common.currentStatus')}
 						</Text>
 						<View className='flex-row items-center gap-2'>
 							<LivePingDot radioUiState={radioUiState} />

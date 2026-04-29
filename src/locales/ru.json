@@ -11,12 +11,33 @@
 			"PAUSED": "На паузе",
 			"STOPPED": "Выключено",
 			"RECONNECTING": "Переподключение"
+		},
+		"configSource": {
+			"loading": "Загрузка конфигурации",
+			"remote": "Remote Config в прямом эфире",
+			"default": "Remote Config по умолчанию",
+			"static": "Встроенная версия",
+			"error": "Ошибка Remote Config"
 		}
 	},
 
-	"common": {},
+	"common": {
+		"configSource": "Источник конфигурации",
+		"currentStatus": "Текущий статус",
+		"channelsLoaded": "Загружено {{count}} каналов"
+	},
 
 	"pages": {
-		"homepage": {}
+		"homepage": {
+			"dev": {
+				"fetchConfig": "Получить конфигурацию",
+				"fetching": "Загрузка...",
+				"testCrash": "Тест краша"
+			},
+			"errors": {
+				"invalidRemoteConfig": "Полезная нагрузка Remote Config невалидна. Используются встроенные каналы.",
+				"failedRemoteConfig": "Ошибка запроса Remote Config. Используются встроенные каналы."
+			}
+		}
 	}
 }

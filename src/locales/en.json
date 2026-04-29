@@ -11,12 +11,33 @@
 			"PAUSED": "Pause",
 			"STOPPED": "Off",
 			"RECONNECTING": "Reconnecting"
+		},
+		"configSource": {
+			"loading": "Loading config",
+			"remote": "Remote Config live",
+			"default": "Remote Config default",
+			"static": "Bundled fallback",
+			"error": "Remote Config error"
 		}
 	},
 
-	"common": {},
+	"common": {
+		"configSource": "Config source",
+		"currentStatus": "Current status",
+		"channelsLoaded": "{{count}} channels loaded"
+	},
 
 	"pages": {
-		"homepage": {}
+		"homepage": {
+			"dev": {
+				"fetchConfig": "Fetch Config",
+				"fetching": "Fetching...",
+				"testCrash": "Test Crash"
+			},
+			"errors": {
+				"invalidRemoteConfig": "Remote Config payload is invalid. Using bundled channels.",
+				"failedRemoteConfig": "Remote Config request failed. Using bundled channels."
+			}
+		}
 	}
 }
